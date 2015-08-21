@@ -1,3 +1,5 @@
+var path = require('path')
+
 module.exports = {
   entry: "./js/main.js",
 
@@ -9,8 +11,8 @@ module.exports = {
   module: {
     loaders: [
       { test: /\.js$/
-      , loader: "babel"
-      , exclude: /node_modules/
+      , loaders: [ "babel", path.join(__dirname, '..') ]
+      , exclude: /\/node_modules\//
       }
     ]
   }
