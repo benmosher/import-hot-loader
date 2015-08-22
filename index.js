@@ -1,7 +1,7 @@
 var recast = require('recast')
   , b = recast.types.builders
 
-var lookupMapName = '__hotModules'
+var MAP_NAME = '__hotModules'
 
 module.exports = function importHotLoader(source/*todo: map*/) {
   this.cacheable()
@@ -20,6 +20,18 @@ module.exports = function importHotLoader(source/*todo: map*/) {
 function transform(ast) {
   var lookup = {}
 
+  function dynamicReference(to) {
+    var spec = lookup[to]
+
+    return b.memberExpression(
+      b.memberExpression( b.identifier(MAP_NAME)
+                        , b.literal(spec.moduleSource)
+                        , true
+                        ),
+      b.literal(spec.importedName),
+      true)
+  }
+
   recast.visit(ast, {
     // step 2: find imports
     visitImportSpecifier: function (path) {
@@ -34,16 +46,8 @@ function transform(ast) {
     // step 3: write 'dynamic' map, rewrite all references to imports to it
     visitIdentifier: function (path) {
       if (path.value.name in lookup) {
-        var spec = lookup[path.value.name]
         // todo: rewrite bind to arrow expression if object of [x].bind(...)
-        var replacement = b.memberExpression(
-          b.memberExpression( b.identifier(lookupMapName)
-                            , b.literal(spec.moduleSource)
-                            , true
-                            ),
-          b.literal(spec.importedName),
-          true)
-
+        var replacement = dynamicReference(path.value.name)
         replaceNode(path, replacement)
       }
       return false
