@@ -1,7 +1,7 @@
 var recast = require('recast')
   , b = recast.types.builders
 
-var lookupMapName = '__hotDependencyHash'
+var lookupMapName = '__hotModules'
 
 module.exports = function importHotLoader(source/*todo: map*/) {
   this.cacheable()
@@ -11,23 +11,27 @@ module.exports = function importHotLoader(source/*todo: map*/) {
                                  , ecmaVersion: 6
                                  , sourceType: 'module' 
                                  })
-  // console.log(ast)
 
-  // step 2: find imports
+  ast = transform(ast)
+  
+  return recast.print(ast).code
+}
+
+function transform(ast) {
   var lookup = {}
+
   recast.visit(ast, {
+    // step 2: find imports
     visitImportSpecifier: function (path) {
       var specifier = path.value
-        , declaration = path.parentPath.parentPath.value
+        , declaration = path.parent.node
       lookup[specifier.local.name] = { moduleSource: declaration.source.value
                                      , importedName: specifier.imported.name
                                      }
-      this.traverse(path)
-    }
-  })
+      return false // don't traverse deeper
+    },
 
-  // step 3: write 'dynamic' map, rewrite all references to imports to it
-  recast.visit(ast, {
+    // step 3: write 'dynamic' map, rewrite all references to imports to it
     visitIdentifier: function (path) {
       if (path.value.name in lookup) {
         var spec = lookup[path.value.name]
@@ -38,16 +42,29 @@ module.exports = function importHotLoader(source/*todo: map*/) {
                             , true
                             ),
           b.literal(spec.importedName),
-          false)
-        console.log(replacement)
+          true)
+
+        replaceNode(path, replacement)
       }
       return false
     }
   })
-  // step 4: write module.hot acceptors (possibly as a runtime reference)
+  // step 4: write module.hot acceptors:
+  // if (module.hot) {
+  //   module.hot.accept('./mod', function () {
+  //     var updatedModule = require('./mod')
+  //     dynamicReference['./mod'] = updatedModule
+  //   })
+  //   
+  //   // ... one for each hot module
+  // }
 
   // may want to:
-  // - check for assigments/closures and react appropriately
+  // - check for module-scoped assigments/closures and react appropriately
   
-  return source
+  return ast
+}
+
+function replaceNode(path, replacement) {
+  path.parent.node[path.name] = replacement
 }
