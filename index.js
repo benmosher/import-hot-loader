@@ -54,7 +54,7 @@ function transform(ast) {
       if (path.value.name in lookup) {
         // todo: rewrite bind to arrow expression if object of [x].bind(...)
         var replacement = dynamicReference(path.value.name)
-        replaceNode(path, replacement)
+        path.replace(replacement)
       }
       return false
     },
@@ -78,7 +78,7 @@ function transform(ast) {
           ]
           )
 
-        replaceNode(path, replacement)
+        path.replace(replacement)
 
         // don't continue down this path
         return false
@@ -140,8 +140,4 @@ function transform(ast) {
   // - check for module-scoped assigments/closures and react appropriately
   
   return ast
-}
-
-function replaceNode(path, replacement) {
-  path.parent.node[path.name] = replacement
 }
