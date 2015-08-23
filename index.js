@@ -87,18 +87,17 @@ function transform(ast) {
       ]
     ))
   }
-
-  // todo: if(module.hot)
-  var ifHot = b.ifStatement(b.memberExpression(b.literal('module')))
-  imported.forEach(function (moduleName) {
-    ast.program.body.push(moduleAcceptor(moduleName))
-  })
+  if (imported.length) {
+    ast.program.body.push(b.ifStatement(
+      // b.memberExpression(b.identifier('module'), b.identifier('hot'), false),
+      b.memberExpression(b.identifier('module'), b.identifier('hot')),
+      b.blockStatement(imported.map(moduleAcceptor))))
+  }
   // if (module.hot) {
   //   module.hot.accept('./mod', function () {
   //     var updatedModule = require('./mod')
   //     dynamicReference['./mod'] = updatedModule
   //   })
-  //   
   //   // ... one for each hot module
   // }
 
