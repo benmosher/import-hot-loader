@@ -19,6 +19,7 @@ module.exports = function importHotLoader(source/*todo: map*/) {
 
 function transform(ast) {
   var lookup = {}
+    , imported = []
 
   function dynamicReference(to) {
     var spec = lookup[to]
@@ -32,6 +33,7 @@ function transform(ast) {
       true)
   }
 
+
   recast.visit(ast, {
     // step 2: find imports
     visitImportSpecifier: function (path) {
@@ -41,6 +43,11 @@ function transform(ast) {
                                      , importedName: specifier.imported.name
                                      }
       return false // don't traverse deeper
+    },
+
+    visitImportDeclaration: function (path) {
+      imported.push(path.node.source.value)
+      this.traverse(path)
     },
 
     // step 3: write 'dynamic' map, rewrite all references to imports to it
@@ -53,7 +60,39 @@ function transform(ast) {
       return false
     }
   })
+
   // step 4: write module.hot acceptors:
+  function moduleAcceptor(moduleName) {
+    return b.expressionStatement(b.callExpression(
+      b.memberExpression( b.memberExpression( b.identifier('module')
+                                           , b.identifier('hot')
+                                           , false)
+                        , b.identifier('accept')
+                        , false
+                        ),
+      [ b.literal(moduleName)
+      , b.functionExpression(null, [], b.blockStatement([
+          b.expressionStatement(
+            b.assignmentExpression(
+              '=', 
+              b.memberExpression( b.identifier(MAP_NAME)
+                                , b.literal(moduleName)
+                                , true),
+              b.callExpression( b.identifier('require')
+                              , [ b.literal(moduleName) ]
+                              )
+            )
+          )
+        ]))
+      ]
+    ))
+  }
+
+  // todo: if(module.hot)
+  var ifHot = b.ifStatement(b.memberExpression(b.literal('module')))
+  imported.forEach(function (moduleName) {
+    ast.program.body.push(moduleAcceptor(moduleName))
+  })
   // if (module.hot) {
   //   module.hot.accept('./mod', function () {
   //     var updatedModule = require('./mod')
