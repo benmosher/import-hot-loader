@@ -33,7 +33,6 @@ function transform(ast) {
       true)
   }
 
-
   recast.visit(ast, {
     // step 2: find imports
     visitImportSpecifier: function (path) {
@@ -88,6 +87,14 @@ function transform(ast) {
     ))
   }
   if (imported.length) {
+    ast.program.body.unshift(
+      b.variableDeclaration('const', [
+        b.variableDeclarator(b.identifier(MAP_NAME), 
+          b.objectExpression(imported.map(function (moduleName) {
+            return b.property('init', b.literal(moduleName), 
+              b.callExpression(b.identifier('require'), [ b.literal(moduleName) ]))
+          })))
+      ]))
     ast.program.body.push(b.ifStatement(
       // b.memberExpression(b.identifier('module'), b.identifier('hot'), false),
       b.memberExpression(b.identifier('module'), b.identifier('hot')),
