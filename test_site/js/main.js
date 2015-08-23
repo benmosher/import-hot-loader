@@ -3,4 +3,4 @@ document.write('wheeee')
 
 import { pure } from './mod'
 
-window.dynamic = function (x) { return pure(x) }
+window.dynamic = pure

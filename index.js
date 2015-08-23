@@ -57,6 +57,34 @@ function transform(ast) {
         replaceNode(path, replacement)
       }
       return false
+    },
+
+    visitAssignmentExpression: function (path) {
+      if (path.node.right.type === 'Identifier' && 
+          path.node.right.name in lookup &&
+          path.node.left.type === 'MemberExpression' &&
+          path.node.left.property.type === 'Identifier') {
+        // rewrite to getter
+        var replacement = b.callExpression(
+          b.memberExpression(b.identifier('Object'), b.identifier('defineProperty')),
+          [ path.node.left.object
+          , b.literal(path.node.left.property.name)
+          , b.objectExpression([ 
+              b.property('init', b.identifier('get'), 
+                b.functionExpression(null, [], b.blockStatement([
+                  b.returnStatement(dynamicReference(path.node.right.name))
+                ])))
+            ])
+          ]
+          )
+
+        replaceNode(path, replacement)
+
+        // don't continue down this path
+        return false
+      } 
+
+      this.traverse(path)
     }
   })
 
