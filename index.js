@@ -1,5 +1,6 @@
 var recast = require('recast')
   , b = recast.types.builders
+  , n = recast.types.namedTypes
 
 var MAP_NAME = '__hotModules'
 
@@ -60,10 +61,10 @@ function transform(ast) {
     },
 
     visitAssignmentExpression: function (path) {
-      if (path.node.right.type === 'Identifier' && 
+      if (n.Identifier.check(path.node.right) && 
           path.node.right.name in lookup &&
-          path.node.left.type === 'MemberExpression' &&
-          path.node.left.property.type === 'Identifier') {
+          n.MemberExpression.check(path.node.left) &&
+          n.Identifier.check(path.node.left.property)) {
         // rewrite to getter
         var replacement = b.callExpression(
           b.memberExpression(b.identifier('Object'), b.identifier('defineProperty')),
